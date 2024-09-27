@@ -1,0 +1,11 @@
+x = 5 + 5
+while (x <= 30) {
+    print x
+    x = x + 5
+}
+
+if (x <= 25) {
+    print x - 10
+} else {
+    print x + 10
+}

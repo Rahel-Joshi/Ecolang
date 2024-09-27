@@ -1,114 +1,165 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <algorithm>  // For std::any_of
 
-// Define token types
+// ==================== Lexer and Token Definitions ====================
+
+// Enum for different types of tokens
 enum TokenType {
-    IDENTIFIER, // Variable names (x, y, etc.)
-    NUMBER,     // Numbers (e.g., 10, 3.14)
-    PLUS,       // +
-    MINUS,      // -
-    MULTIPLY,   // *
-    DIVIDE,     // /
-    ASSIGN,     // =
-    IF,         // 'if' conditional
-    WHILE, 
-    ELSE, 
-    LBRACE,
-    RBRACE,
-    LPAREN,
-    RPAREN,
-    GEQ,
-    LEQ,
-    END         // End of input
+    IDENTIFIER, NUMBER, PLUS, MINUS, MULTIPLY, DIVIDE,
+    ASSIGN, LPAREN, RPAREN, LBRACE, RBRACE,
+    IF, ELSE, WHILE, PRINT,
+    GEQ, LEQ, // For comparison operators
+    END_OF_FILE
 };
 
-// Token structure
+// Structure representing a token
 struct Token {
     TokenType type;
     std::string value;
 
-    Token(TokenType type, std::string value = "") {
-        this->type = type;
-        this->value = value;
-    }
+    Token(TokenType type, std::string value = "")
+        : type(type), value(value) {}
 };
 
-// Lexer class (barebones)
+// Lexer class to tokenize the input source code
 class Lexer {
 public:
-    // Constructor that takes the input
-    explicit Lexer(const std::string &input) {
-        this->input = input;
-        this->pos = 0;
-    }
+    Lexer(const std::string& source)
+        : source(source), pos(0) {}
 
-    // Function to tokenize the input (barebones, not implemented yet)
     std::vector<Token> tokenize() {
         std::vector<Token> tokens;
-        int l = 0;
-        int size = input.size();
+        while (pos < source.size()) {
+            char currentChar = source[pos];
 
-        for (int r = 0; r < size; r++) {
-            if ((r == size - 1 || this->input.at(r + 1) == ' ') && this->input.at(r) != ' ') {
-                // either r is pointing at eow or next char is ' ' and char r is pointing to is not a ' '
-                std::string word = this->input.substr(l, r - l + 1);
-                // case of number
-                if (word == "+") {
-                    tokens.push_back(Token(PLUS));
-                }
-                else if (word == "-") {
-                    tokens.push_back(Token(MINUS));
-                }
-                else if (word == "*") {
-                    tokens.push_back(Token(MULTIPLY));
-                }
-                else if (word == "/") {
-                    tokens.push_back(Token(DIVIDE));
-                }
-                else if (word == "=") {
-                    tokens.push_back(Token(ASSIGN));
-                }
-                // else if (word == "(") {
-                //     tokens.push_back(Token(LPAREN));
-                // }
-                // else if (word == ")") {
-                //     tokens.push_back(Token(RPAREN));
-                // }
-                else {
-                    if (isNumber(word)) {
-                        tokens.push_back(Token(NUMBER, word));
-                    }
-                    else {
-                        tokens.push_back(Token(IDENTIFIER, word));
-                    }
-                }
+            if (std::isspace(currentChar)) {
+                pos++;
+                continue;
             }
-            else if (this->input.at(r) == ' ') {
-                l = r+1;
-                // l will always point to first non space
+
+            if (std::isalpha(currentChar)) {
+                std::string identifier = parseIdentifier();
+                if (identifier == "if") {
+                    tokens.push_back(Token(IF));
+                } else if (identifier == "else") {
+                    tokens.push_back(Token(ELSE));
+                } else if (identifier == "while") {
+                    tokens.push_back(Token(WHILE));
+                } else if (identifier == "print") {
+                    tokens.push_back(Token(PRINT));
+                } else {
+                    tokens.push_back(Token(IDENTIFIER, identifier));
+                }
+                continue;
+            }
+
+            if (std::isdigit(currentChar)) {
+                std::string number = parseNumber();
+                tokens.push_back(Token(NUMBER, number));
+                continue;
+            }
+
+            switch (currentChar) {
+                case '+':
+                    tokens.push_back(Token(PLUS));
+                    pos++;
+                    break;
+                case '-':
+                    tokens.push_back(Token(MINUS));
+                    pos++;
+                    break;
+                case '*':
+                    tokens.push_back(Token(MULTIPLY));
+                    pos++;
+                    break;
+                case '/':
+                    tokens.push_back(Token(DIVIDE));
+                    pos++;
+                    break;
+                case '=':
+                    // Check for '==' (equality operator)
+                    if (pos + 1 < source.size() && source[pos + 1] == '=') {
+                        // For simplicity, we'll treat '==' as ASSIGN
+                        tokens.push_back(Token(ASSIGN));
+                        pos += 2;
+                    } else {
+                        tokens.push_back(Token(ASSIGN));
+                        pos++;
+                    }
+                    break;
+                case '>':
+                    if (pos + 1 < source.size() && source[pos + 1] == '=') {
+                        tokens.push_back(Token(GEQ));
+                        pos += 2;
+                    } else {
+                        // For simplicity, we'll treat '>' as GEQ
+                        tokens.push_back(Token(GEQ));
+                        pos++;
+                    }
+                    break;
+                case '<':
+                    if (pos + 1 < source.size() && source[pos + 1] == '=') {
+                        tokens.push_back(Token(LEQ));
+                        pos += 2;
+                    } else {
+                        // For simplicity, we'll treat '<' as LEQ
+                        tokens.push_back(Token(LEQ));
+                        pos++;
+                    }
+                    break;
+                case '(':
+                    tokens.push_back(Token(LPAREN));
+                    pos++;
+                    break;
+                case ')':
+                    tokens.push_back(Token(RPAREN));
+                    pos++;
+                    break;
+                case '{':
+                    tokens.push_back(Token(LBRACE));
+                    pos++;
+                    break;
+                case '}':
+                    tokens.push_back(Token(RBRACE));
+                    pos++;
+                    break;
+                default:
+                    std::cerr << "Unknown character: " << currentChar << std::endl;
+                    pos++;
+                    break;
             }
         }
-        // TODO: Implement tokenization logic here
-        tokens.push_back(Token(END)); // Always end with END token
+
+        tokens.push_back(Token(END_OF_FILE));
         return tokens;
     }
 
 private:
-    std::string input; // Input string
-    size_t pos;        // Current position in the input
+    std::string source;
+    size_t pos;
 
-    bool isNumber(std::string &word) {
-        for (char c : word) {
-            if (!isdigit(c)) return false;
+    std::string parseIdentifier() {
+        std::string result;
+        while (pos < source.size() && (std::isalnum(source[pos]) || source[pos] == '_')) {
+            result += source[pos++];
         }
-        return true;
+        return result;
     }
 
-    // TODO: Implement helper functions like identifier() and number() here
+    std::string parseNumber() {
+        std::string result;
+        while (pos < source.size() && std::isdigit(source[pos])) {
+            result += source[pos++];
+        }
+        return result;
+    }
 };
 
-// Helper function to display tokens (for debugging)
 void displayTokens(const std::vector<Token>& tokens) {
     for (Token token : tokens) {
         std::cout << "Token(Type: " << token.type;
@@ -126,7 +177,5 @@ void testLexer() {
     displayTokens(tokens);  // Output tokens for debugging (nothing here yet)
 }
 
-int main() {
-    testLexer();  // Run lexer test
-    return 0;
-}
+
+

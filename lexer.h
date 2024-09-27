@@ -5,7 +5,11 @@
 #include <string>
 
 enum TokenType {
-    IDENTIFIER, NUMBER, PLUS, MINUS, MULTIPLY, DIVIDE, ASSIGN, IF, WHILE, ELSE, LBRACE, RBRACE, LPAREN, RPAREN, GEQ, LEQ, END
+    IDENTIFIER, NUMBER, PLUS, MINUS, MULTIPLY, DIVIDE,
+    ASSIGN, LPAREN, RPAREN, LBRACE, RBRACE,
+    IF, ELSE, WHILE, PRINT,
+    GEQ, LEQ, // For comparison operators
+    END_OF_FILE
 };
 
 struct Token {
@@ -24,7 +28,8 @@ private:
     std::string input;
     size_t pos;
 
-    bool isNumber(std::string &word);
+    std::string parseIdentifier();
+    std::string parseNumber();
 };
 
 #endif // LEXER_H
